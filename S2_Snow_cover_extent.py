@@ -49,7 +49,7 @@ with rasterio.open(SWIRpath) as swir:
                      out_shape = (swir.count, int(swir.width * upscale_factor), int(swir.height * upscale_factor)), 
                      resampling = Resampling.bilinear
                      )
-    ## scale image transform (Georef info)
+    ## transform from pixel row/column coordinates to spatial coordinates (in the dataset’s coordinate reference system).
     transform = swir.transform * swir.transform.scale((swir.width / SWIR.shape[-2]),(swir.height / SWIR.shape[-1]))
        
 with rasterio.open(CLDprobpath) as cloud:
