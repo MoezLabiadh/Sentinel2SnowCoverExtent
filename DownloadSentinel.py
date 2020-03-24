@@ -8,7 +8,7 @@ import os
 import geopandas as gpd
 from sentinelsat.sentinel import SentinelAPI, read_geojson, geojson_to_wkt
 
-workspace = 'H:/Profile/Desktop/ARCHIVE/2019/LIDAR_works/tests'
+workspace = 'C:/...../workspace'
 AOI= os.path.join (workspace, "AOI.geojson")
 
 #Setting connection parameters to the Sentinel Hub server
