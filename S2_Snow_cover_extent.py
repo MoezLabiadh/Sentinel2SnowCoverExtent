@@ -8,7 +8,7 @@ import numpy as np
 import rasterio
 from rasterio.enums import Resampling
 
-Workspace = 'C:/...../workspace'
+Workspace = 'H:/Profile/Desktop/TRAINING/RS/SnowCoverProject'
 S2_path = os.path.join (Workspace, 'raw_data/S2B_MSIL2A_20191208T184749_N0213_R070_T11UNQ_20191208T205518.SAFE')
 
 #Browse through the S2 product folder and retrieve the following bands: Green, Red, SWIR and Cloud probability
@@ -21,7 +21,9 @@ for root, dirs, files in os.walk(S2_path):
         elif name.endswith("B08_10m.jp2"):
             NIRpath = os.path.join (root, name)            
         elif name.endswith("B11_20m.jp2"):
-            SWIRpath = os.path.join (root, name)
+            SWIR1path = os.path.join (root, name)
+        elif name.endswith("B12_20m.jp2"):
+            SWIR2path = os.path.join (root, name)            
         elif name.endswith("CLDPRB_20m.jp2"):
             CLDprobpath = os.path.join (root, name)
         else:
@@ -42,15 +44,22 @@ with rasterio.open(Rpath) as red:
 with rasterio.open(NIRpath) as nir:
     NIR = nir.read()
     
-with rasterio.open(SWIRpath) as swir:
+with rasterio.open(SWIR1path) as swir1:
     ## resample data to target shape
     print ('Resampling SWIR and Cloud bands to 10m')
-    SWIR = swir.read(
-                     out_shape = (swir.count, int(swir.width * upscale_factor), int(swir.height * upscale_factor)), 
+    SWIR1 = swir1.read(
+                     out_shape = (swir1.count, int(swir1.width * upscale_factor), int(swir1.height * upscale_factor)), 
                      resampling = Resampling.bilinear
                      )
-    ## transform from pixel row/column coordinates to spatial coordinates (in the dataset’s coordinate reference system).
-    transform = swir.transform * swir.transform.scale((swir.width / SWIR.shape[-2]),(swir.height / SWIR.shape[-1]))
+    ## Transform from pixel row/column coordinates to spatial coordinates (in the dataset’s coordinate reference system).
+    transform = swir1.transform * swir1.transform.scale((swir1.width / SWIR1.shape[-2]),(swir1.height / SWIR1.shape[-1]))
+
+with rasterio.open(SWIR2path) as swir2:
+    SWIR2 = swir2.read(
+                     out_shape = (swir2.count, int(swir2.width * upscale_factor), int(swir2.height * upscale_factor)), 
+                     resampling = Resampling.bilinear
+                     )
+    transform = swir2.transform * swir2.transform.scale((swir2.width / SWIR2.shape[-2]),(swir2.height / SWIR2.shape[-1]))
        
 with rasterio.open(CLDprobpath) as cloud:
     CLOUD  = cloud.read(
@@ -58,14 +67,7 @@ with rasterio.open(CLDprobpath) as cloud:
                         resampling = Resampling.bilinear
                         )
     transform = cloud.transform * cloud.transform.scale((cloud.width / CLOUD.shape[-2]),(cloud.height / CLOUD.shape[-1]))
- 
-#Create a new folder that will hold the script outputs
-Output_dir = os.path.join (Workspace, 'Script_Outputs')
-if not os.path.exists(Output_dir):
-    os.makedirs (Output_dir)
-else:
-    pass 
-   
+    
 #Create the Cloud Mask.
 print ("Calculating the Cloud Mask")
 
@@ -75,7 +77,7 @@ Cloud_mask = np.where((CLOUD >= 90), 2, np.where(((CLOUD >= 50) & (NIR > 3000) |
        
 #Calculate the Normalized Difference Snow Index 
 print ("Calculating the NDSI")
-ndsi= (GREEN.astype(float) - SWIR.astype(float)) / (GREEN+SWIR)
+ndsi= (GREEN.astype(float) - SWIR1.astype(float)) / (GREEN+SWIR1)
 
 # Create the Snow Cover (SCE) Extent Layer
  ## Expression: IF CloudMask = 0 AND NDSI > 0.3 AND RED > 0.3 THEN 2. ELIF CloudMask > 0 THEN 1. ELSE 0
@@ -83,16 +85,40 @@ ndsi= (GREEN.astype(float) - SWIR.astype(float)) / (GREEN+SWIR)
 print ("Calculating the Snow Cover Extent")
 SCE = np.where(((Cloud_mask == 0) & (ndsi >= 0.3) & (RED >= 1000)), 2, np.where (((Cloud_mask > 0)),1,0))
 
+#Create a new folder that will hold the script outputs
+Output_dir = os.path.join (Workspace, 'Script_Outputs')
+if not os.path.exists(Output_dir):
+    os.makedirs (Output_dir)
+else:
+    pass 
 
-#Export the final output
+#Export the final outputs
  ## Update profile saved from the Green band. Set the driver to Gtiff and type to Float, apply compression...
-profile.update(driver='GTiff' , dtype=rasterio.float32 , crs = Gcrs , compress='lzw')
+profile.update(driver='GTiff' , dtype=rasterio.uint16 , crs = Gcrs , compress='lzw')
 
- ##Include the tile number and acquisition date in the output name. 
-SnowCover = os.path.join (Workspace, Output_dir, 'S2A_' + os.path.basename(Gpath)[:15] + '_Snow_cover_extent.tif') 
+print ("Exporting the Snow Cover Extent")
+ ##Include the tile number and acquisition date in the outputs names. 
+SnowCover = os.path.join (Workspace, Output_dir, 'S2A_' + os.path.basename(Gpath)[:15] + '_Snow_cover_extent.tif')
 
 ## Write the SCE array to the drive as Geotiff image. 
-with rasterio.open(SnowCover, 'w', **profile) as dst:
-    dst.write (SCE.astype(rasterio.float32))
+with rasterio.open(SnowCover, 'w', **profile) as sce_out:
+    sce_out.write (SCE.astype(rasterio.uint16))
+    sce_out.close ()
+    
+print ("Exporting the Band Composite (SWIR2, SWIR1, GREEN)")
 
-print ("Process Completed")
+b12_swir2 = rasterio.open (SWIR2path)
+b11_swir1 = rasterio.open (SWIR1path)
+b03_G= rasterio.open (Gpath)
+
+profile.update(count=3)
+BandComposite = os.path.join (Workspace, Output_dir, 'S2A_' + os.path.basename(Gpath)[:15] + '_Band_Composite.tif')  
+## Write the Band Composite array to the drive as Geotiff image. Composite is SWIR2, SWIR1, Green 
+with rasterio.open(BandComposite, 'w', **profile) as bandcomp_out:
+   bandcomp_out.write (b12_swir2.read(1),1)
+   bandcomp_out.write (b11_swir1.read(1),2)
+   bandcomp_out.write (b03_G.read(1),3)
+   bandcomp_out.close ()
+    
+    
+print ("Process Completed. Output location is: {}" .format (os.path.join (Workspace, Output_dir)))
