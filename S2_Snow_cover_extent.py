@@ -106,13 +106,14 @@ with rasterio.open(SnowCover, 'w', **profile) as sce_out:
     sce_out.close ()
     
 print ("Exporting the Band Composite (SWIR2, SWIR1, GREEN)")
-
 b12_swir2 = rasterio.open (SWIR2path)
 b11_swir1 = rasterio.open (SWIR1path)
 b03_G= rasterio.open (Gpath)
 
-profile.update(count=3)
-BandComposite = os.path.join (Workspace, Output_dir, 'S2A_' + os.path.basename(Gpath)[:15] + '_Band_Composite.tif')  
+profile.update(count=3) # Update the profile again to change the number of bands to 3.
+
+BandComposite = os.path.join (Workspace, Output_dir, 'S2A_' + os.path.basename(Gpath)[:15] + '_Band_Composite.tif') 
+ 
 ## Write the Band Composite array to the drive as Geotiff image. Composite is SWIR2, SWIR1, Green 
 with rasterio.open(BandComposite, 'w', **profile) as bandcomp_out:
    bandcomp_out.write (b12_swir2.read(1),1)
