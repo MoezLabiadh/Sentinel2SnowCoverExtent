@@ -53,13 +53,6 @@ with rasterio.open(SWIR1path) as swir1:
                      )
     ## Transform from pixel row/column coordinates to spatial coordinates (in the dataset’s coordinate reference system).
     transform = swir1.transform * swir1.transform.scale((swir1.width / SWIR1.shape[-2]),(swir1.height / SWIR1.shape[-1]))
-
-with rasterio.open(SWIR2path) as swir2:
-    SWIR2 = swir2.read(
-                     out_shape = (swir2.count, int(swir2.width * upscale_factor), int(swir2.height * upscale_factor)), 
-                     resampling = Resampling.bilinear
-                     )
-    transform = swir2.transform * swir2.transform.scale((swir2.width / SWIR2.shape[-2]),(swir2.height / SWIR2.shape[-1]))
        
 with rasterio.open(CLDprobpath) as cloud:
     CLOUD  = cloud.read(
