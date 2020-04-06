@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Thu Feb 20 13:31:40 2020
+Created on Thu Apr 06 13:03:40 2020
 
 @author: MLABIADH
 """
@@ -33,6 +33,7 @@ print("The number of products found is: {} " .format (len(products)))
 products_table = api.to_geodataframe(products)
 
 #This part downloads the product(s) in the same folder where your code is located
+
  ## OPTION 1: Download single product
 api.download('df132697-676e-43ce-b7bd-45211696119f')
 
