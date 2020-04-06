@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 """
+Created on Thu Apr 06 13:03:40 2020
+@author: MLABIADH
+
 This script creates a Snow Cover Extent Layer based on Sentinel-2 Level 2A imagery.
 
 """
