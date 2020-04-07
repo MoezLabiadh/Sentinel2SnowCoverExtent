@@ -14,7 +14,7 @@ from rasterio.enums import Resampling
 Workspace = 'H:/Profile/Desktop/TRAINING/RS/SnowCoverProject'
 S2_path = os.path.join (Workspace, 'raw_data/S2B_MSIL2A_20191208T184749_N0213_R070_T11UNQ_20191208T205518.SAFE')
 
-#Browse through the S2 product folder and retrieve the following bands: Green, Red, SWIR and Cloud probability
+#Browse through the S2 product folder and retrieve the following bands: Green, Red, NIR, SWIR and Cloud probability
 for root, dirs, files in os.walk(S2_path):
     for name in files:
         if name.endswith("B03_10m.jp2"):
