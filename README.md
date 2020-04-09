@@ -1,5 +1,5 @@
 # Sentinel2CloudCoverExtent
-This reposotory has two scripts:
+This repository has two scripts:
 
 *********************
 1. DownloadSentinel.py
