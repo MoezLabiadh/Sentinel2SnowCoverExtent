@@ -11,7 +11,7 @@ import numpy as np
 import rasterio
 from rasterio.enums import Resampling
 
-Workspace = 'H:/Profile/Desktop/TRAINING/RS/SnowCoverProject'
+Workspace = '.../SnowCoverProject'
 S2_path = os.path.join (Workspace, 'raw_data/S2B_MSIL2A_20191208T184749_N0213_R070_T11UNQ_20191208T205518.SAFE')
 
 #Browse through the S2 product folder and retrieve the following bands: Green, Red, NIR, SWIR and Cloud probability
