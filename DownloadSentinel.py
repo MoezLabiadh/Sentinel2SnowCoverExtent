@@ -10,7 +10,7 @@ import os
 import geopandas as gpd
 from sentinelsat.sentinel import SentinelAPI, read_geojson, geojson_to_wkt
 
-#Define the Area of interest (must be GeoJson)
+#Defining the Area of interest (must be GeoJson)
 workspace = 'C:/...../workspace'
 AOI= os.path.join (workspace, "AOI.geojson")
 
