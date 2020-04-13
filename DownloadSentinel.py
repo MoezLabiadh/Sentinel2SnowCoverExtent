@@ -2,7 +2,7 @@
 """
 Created on Thu Apr 06 13:03:40 2020
 
-This script searches and downloads Sentinel-2 (level-2A) imagery.
+This script searches and downloads Sentinel-2 (level-2A) imageryfrom the Copernicus Sci Hub servers.
 
 @author: moez.labiadh
 """
