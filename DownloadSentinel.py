@@ -2,12 +2,15 @@
 """
 Created on Thu Apr 06 13:03:40 2020
 
-@author: MLABIADH
+This script searches and downloads Sentinel-2 (level-2A) imagery.
+
+@author: moez.labiadh
 """
 import os
 import geopandas as gpd
 from sentinelsat.sentinel import SentinelAPI, read_geojson, geojson_to_wkt
 
+#Define the Area of interest (must be GeoJson)
 workspace = 'C:/...../workspace'
 AOI= os.path.join (workspace, "AOI.geojson")
 
@@ -44,4 +47,3 @@ for index, row in products_table.iterrows():
    print ("The following products will be downloaded: {}" . format (download_list))
    api.download (row['uuid'])
  
-
