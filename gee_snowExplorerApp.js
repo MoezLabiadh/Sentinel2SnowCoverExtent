@@ -86,13 +86,6 @@ var BORDER_STYLE = '4px solid rgba(97, 97, 97, 0.05)';
    var firstSubParagraph = ui.Label(firstSubParagraph_text, SUBPARAGRAPH_STYLE);
    mainPanel.add(firstSubParagraph);
    
-   var startDate = ui.Textbox({
-     value: '2020-04-12',
-     placeholder: 'Enter Start date here...',
-     onChange: function(start) {
-       startDate.setValue(start);
-     }
-    });
    
    //Get Today's date and pass it as default End date. 
    var now = new Date();
@@ -104,6 +97,20 @@ var BORDER_STYLE = '4px solid rgba(97, 97, 97, 0.05)';
        endDate.setValue(end);
      }
     });
+ 
+   //Get Last month's date date and pass it as default Start date.
+   var dateNow = ee.Date(nowStr);
+   var lastMonth = dateNow.advance(-1, 'month').format ("YYYY-MM-dd");
+   
+   var startDate = ui.Textbox({
+     value: lastMonth.getInfo(),
+     placeholder: 'Enter Start date here...',
+     onChange: function(start) {
+       startDate.setValue(start);
+     }
+    });
+    
+ 
   
   mainPanel.add(startDate);
   mainPanel.add(endDate);
@@ -196,20 +203,23 @@ Map.drawingTools().onDraw(function (geometry) {
  // print (S2);
  // print (nbr_images);
   if (nbr_images === 0){
-       var dateLabel = ui.Label('No images found. Try a wider date range');
-    
+       var dateLabel = ui.Label('No images found. Try a wider date range', {
+                       fontSize: '14px',
+                       fontWeight: 'bold',
+                       color: '#FF0000',
+                       padding: '2px',
+                       });
   }
        
   else {
     var range = S2.reduceColumns(ee.Reducer.minMax(), ["system:time_start"]);
     var latest = ee.Date(range.get('max')).format ("YYYY-MM-dd");
     //print (latest.getInfo());
-    var dateLabel = ui.Label(latest.getInfo());
+    var dateLabel = ui.Label(latest.getInfo(), {fontWeight: 'bold'});
     //var year = latest.get('year');
     //var month = latest.get('month');
     //var day = latest.get('day');
     //var dateString = year.toString()+'-'+month.toString()+'-'+ day.toString();
-    
   }
 
   var mosaic = S2.mosaic();
@@ -397,7 +407,7 @@ ADD REFRESH TEXT
 */
 
 var refreshPanel = ui.Panel();
-var refreshText = ui.Label('To refresh the view and start again, press F5.');
+var refreshText = ui.Label('To refresh the view and start again, press F5.', {fontWeight: 'bold'});
 Map.add(refreshPanel);
 refreshPanel.add(refreshText);
  
