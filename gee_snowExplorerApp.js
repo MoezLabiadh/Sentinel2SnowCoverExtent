@@ -1,6 +1,6 @@
 /*
 
-MAKE PANEL SECTION
+MAKE MAIN PANEL
 
 */
 
@@ -56,8 +56,8 @@ var BORDER_STYLE = '4px solid rgba(97, 97, 97, 0.05)';
     layout: ui.Panel.Layout.flow('vertical', true),
     style: {
       stretch: 'horizontal',
-      height: '100%',
-      width: '550px',
+      height: '545px',
+      width: '570px',
       backgroundColor: colors.gray,
       border: BORDER_STYLE,
       position: 'top-left'
@@ -87,6 +87,7 @@ var BORDER_STYLE = '4px solid rgba(97, 97, 97, 0.05)';
    mainPanel.add(firstSubParagraph);
    
    var startDate = ui.Textbox({
+     value: '2020-04-12',
      placeholder: 'Enter Start date here...',
      onChange: function(start) {
        startDate.setValue(start);
@@ -111,20 +112,23 @@ var BORDER_STYLE = '4px solid rgba(97, 97, 97, 0.05)';
   var secondSubTitle = ui.Label(secondSubTitle_text, SUBTITLE_STYLE);
   mainPanel.add(secondSubTitle);
   
-   var secondSubParagraph_text = 'Click on the button, then draw your Region of Interest on the map.';
+   var secondSubParagraph_text = 'Click on the button, then draw your Region of Interest (ROI) on the map.';
+   var secondSubParagraph_textP = '(For best performance draw small ROIs)';
    var secondSubParagraph = ui.Label(secondSubParagraph_text, SUBPARAGRAPH_STYLE);
+   var secondSubParagraphP = ui.Label(secondSubParagraph_textP, SUBPARAGRAPH_STYLE);
    mainPanel.add(secondSubParagraph);
+   mainPanel.add(secondSubParagraphP);
   
 Map.add(mainPanel);
 
 /*
 
-IMAGERY PROCESSING SECTION
+PROCESSING STARTS HERE
 
 */
 
 
-Map.setCenter (-117,50,6);
+Map.setCenter (-120,50,7);
 
 
 var drawButton = ui.Button({
@@ -156,19 +160,23 @@ Map.drawingTools().onDraw(function (geometry) {
   var date_end= endDate.getValue();
 
   //Define a Cloud Threshold
-  var cloud_threshold = 20;
+  var cloud_threshold = 30;
 
   //Setup a function to caclulate the NDSI
   function CalculateNDSI(image) {
     var NDSI = image.normalizedDifference(['B3', 'B11']).rename('NDSI');
     return image.addBands(NDSI);
         } 
-        
+  
+  //Add a Time band.
+  function TimeBand (image) {
+  return image.addBands(image.metadata('system:time_start'));
+}
+
   //Setup a function to caclulate the Cloud and Cloud Shadow Mask        
   function CloudMask (image){
     var cloud_mask = image.expression(
-      "(b('MSK_CLDPRB') >= 90) ? 2 " +
-       ": ((b('MSK_CLDPRB') >= 50) && (b('B8A') >= 3000)) || ((b('MSK_CLDPRB') >= 20) && (b('B8A') >= 9000))  ? 1" +
+      "((b('MSK_CLDPRB') >= 90)) || ((b('MSK_CLDPRB') >= 50) && (b('B8A') >= 3000)) || ((b('MSK_CLDPRB') >= 20) && (b('B8A') >= 9000)) ? 1 " +
          ": 0").rename('CloudMask');
     return image.addBands(cloud_mask);
         } 
@@ -177,31 +185,55 @@ Map.drawingTools().onDraw(function (geometry) {
   var S2 = ee.ImageCollection("COPERNICUS/S2_SR")
       .filterDate(date_start, date_end)
       .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', cloud_threshold))
+      .sort('CLOUDY_PIXEL_PERCENTAGE')
       .sort('system:time_start')
       .filterBounds(AOI)
-      .map(CloudMask) //Add Cloud Mask band.
-      .map(CalculateNDSI); //Add NDSI band.
+      .map(CloudMask) 
+      .map(CalculateNDSI)
+      .map(TimeBand);
 
-  print (S2);
+  var nbr_images = S2.size().getInfo();
+ // print (S2);
+ // print (nbr_images);
+  if (nbr_images === 0){
+       var dateLabel = ui.Label('No images found. Try a wider date range');
+    
+  }
+       
+  else {
+    var range = S2.reduceColumns(ee.Reducer.minMax(), ["system:time_start"]);
+    var latest = ee.Date(range.get('max')).format ("YYYY-MM-dd");
+    //print (latest.getInfo());
+    var dateLabel = ui.Label(latest.getInfo());
+    //var year = latest.get('year');
+    //var month = latest.get('month');
+    //var day = latest.get('day');
+    //var dateString = year.toString()+'-'+month.toString()+'-'+ day.toString();
+    
+  }
+
   var mosaic = S2.mosaic();
-  print (mosaic);
 
   //Create the Snow Cover Extent (SCE) layer
+
   var SCE = mosaic.expression(
       "((b('CloudMask') == 0 && (b('NDSI') >= 0.3) && (b('B4') >= 1000))) ? 2" +
-       ": (b('CloudMask') > 0) ? 1" +
+       ": (b('CloudMask') == 1) ? 1" +
         ": 0"
-    ).clip(AOI);
+    ).rename ('SnowIndex').clip(AOI);
 
+  
   //Create a Band Composite image (SWIR2,SWIR1,Green)
   var BandComposite = mosaic.clip(AOI);
 
   //Set the visualisation parameters.
+
   var SCEkViz = {
     min: 0,
     max: 2,
-    palette: ['yellow', 'red','blue'],
+    palette: ['yellow','red','blue'],
   };
+
 
   var BandCompViz = {
     min: 0,
@@ -211,48 +243,62 @@ Map.drawingTools().onDraw(function (geometry) {
 
   //var mask = SCE.gt(0);
   var SCE_masked = SCE.updateMask(SCE.gt(0));
+  
+  // Load SRTM Digital Elevation Model data.
+var elevation = ee.Image('CGIAR/SRTM90_V4');
 
-  Map.addLayer(BandComposite.select('B4', 'B3', 'B2').clip(AOI), BandCompViz, 'Sentinel-2 Imagery');
+// Define an sld style color ramp to apply to the image.
+var sld_ramp =
+  '<RasterSymbolizer>' +
+    '<ColorMap type="ramp" extended="false" >' +
+      '<ColorMapEntry color="#aeefd5" quantity="400" label="400"/>' +
+      '<ColorMapEntry color="#ecfcb3" quantity="600" label="600" />' +
+      '<ColorMapEntry color="#39af30" quantity="800" label="800" />' +
+      '<ColorMapEntry color="#6e9634" quantity="1000" label="1000" />' +
+      '<ColorMapEntry color="#f09f02" quantity="1400" label="1400" />' +
+      '<ColorMapEntry color="#901001" quantity="1600" label="1600" />' +
+      '<ColorMapEntry color="#6e2308" quantity="1800" label="1800" />' +      
+      '<ColorMapEntry color="#825336" quantity="2000" label="2000" />' +      
+      '<ColorMapEntry color="#b0b0b0" quantity="2200" label="2200" />' +      
+      '<ColorMapEntry color="#ebe9eb" quantity="2600" label="2600" />' +      
+    '</ColorMap>' +
+  '</RasterSymbolizer>';
+  
+  Map.addLayer(elevation.sldStyle(sld_ramp).clip(AOI), {}, 'Elevation (m)');
+  Map.addLayer(BandComposite.select('B4', 'B3', 'B2','CloudMask').clip(AOI), BandCompViz, 'Sentinel-2 Imagery');
   Map.addLayer(SCE_masked.clip(AOI), SCEkViz, 'Snow Cover Extent');
   
-});
+  
+   /*
 
-  }
-
-
-});
-
-mainPanel.add(drawButton);
-
-var thirdSubParagraph_text = 'To refresh the view, press F5 or use the "Reset Map!" button.';
-var thirdSubParagraph = ui.Label(thirdSubParagraph_text, SUBPARAGRAPH_STYLE);
-mainPanel.add(thirdSubParagraph);
-var refreshButton = ui.Button({
-  label: 'Reset Map!',
-  onClick: function() {
-   Map.setCenter (-117,50,6);
-   Map.layers().reset();
-   Map.drawingTools().layers().reset();
-  }
-});
-
-mainPanel.add(refreshButton);
-
-
-
-/*
-
-ADD A LEGEND
+ADD DATE PANEL
 
 */
 
+  var inspector = ui.Panel({
+  style: {
+    position: 'top-right',
+    padding: '8px 20px'
+          }
+   });
+   
+   var dateLabeltext = ui.Label('Date of the most recent image is:');
+   inspector.add(dateLabeltext);
+   inspector.add(dateLabel);
+   Map.add(inspector);
+ 
+ /*
+
+ADD LEGEND PANEL
+
+*/
 
 
 // set position of panel
 var legend = ui.Panel({
   style: {
     position: 'bottom-right',
-    padding: '8px 15px'
+    padding: '8px 20px'
   }
 });
 
@@ -263,13 +309,25 @@ var legendTitle = ui.Label({
     fontWeight: 'bold',
     fontSize: '18px',
     margin: '0 0 4px 0',
-    padding: '0'
+    padding: '20'
     }
 });
 
 // Add the title to the panel
 legend.add(legendTitle);
-    
+
+// Add 1st item lebel to the panel
+var snowLabel = ui.Label({
+  value: 'Snow Cover',
+  style: {
+    fontWeight: 'bold',    
+    fontSize: '14px',
+    margin: '0 0 4px 0',
+    padding: '0'
+    }
+});
+legend.add(snowLabel);
+
 // Creates and styles 1 row of the legend.
 var makeRow = function(color, name) {
       
@@ -305,6 +363,73 @@ var names = ['Snow','Clouds'];
 // Add color and and names
 for (var i = 0; i < 2; i++) {
   legend.add(makeRow(palette[i], names[i]));
+  } 
+  
+// Add 2nd item lebel to the panel
+var elevationLabel = ui.Label({
+  value: 'Elevation (m)',
+  style: {
+    fontWeight: 'bold',    
+    fontSize: '14px',
+    margin: '0 0 4px 0',
+    padding: '6'
+    }
+});
+legend.add(elevationLabel);  
+
+//  Palette with the colors - elevation
+var palette2 =['aeefd5', 'ecfcb3','39af30','6e9634','f09f02','901001','6e2308','825336','b0b0b0','ebe9eb'];
+
+// name of the legend
+var names2 = ['400','600','800','1000','1400','1600','1800','2000','2200','2600'];
+
+// Add color and and names
+for (var j = 0; j < 10; j++) {
+  legend.add(makeRow(palette2[j], names2[j]));
   }  
 
 Map.add(legend);
+
+/*
+
+ADD REFRESH TEXT
+
+*/
+
+var refreshPanel = ui.Panel();
+var refreshText = ui.Label('To refresh the view and start again, press F5.');
+Map.add(refreshPanel);
+refreshPanel.add(refreshText);
+ 
+});
+
+
+  }
+
+});
+
+mainPanel.add(drawButton);
+
+
+// ON-HOLD. Can't make this work properly!!
+/*
+
+ADD REFRESH BUTTON
+
+*/
+
+
+/*
+var refreshButton = ui.Button({
+  label: 'Reset Map!',
+  onClick: function() {
+   Map.setCenter (-117,50,6);
+   Map.layers().reset();
+   Map.drawingTools().layers().reset();
+   //Map.remove(inspector);
+   //Map.remove(legend);
+  }
+});
+
+mainPanel.add(refreshButton);
+*/
