@@ -56,7 +56,7 @@ var BORDER_STYLE = '4px solid rgba(97, 97, 97, 0.05)';
     layout: ui.Panel.Layout.flow('vertical', true),
     style: {
       stretch: 'horizontal',
-      height: '545px',
+      height: '60%',
       width: '570px',
       backgroundColor: colors.gray,
       border: BORDER_STYLE,
@@ -203,7 +203,7 @@ Map.drawingTools().onDraw(function (geometry) {
  // print (S2);
  // print (nbr_images);
   if (nbr_images === 0){
-       var dateLabel = ui.Label('No images found. Try a wider date range', {
+       var dateLabel = ui.Label('No images found. Refresh the view and select a wider date range', {
                        fontSize: '14px',
                        fontWeight: 'bold',
                        color: '#FF0000',
