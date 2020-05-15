@@ -1,3 +1,11 @@
+
+// Initialize the UI. 
+//Clear the default UI since we're adding our own main and map panels.
+ui.root.clear();
+var mapPanel = ui.Map();
+ui.root.widgets().reset([mapPanel]);
+
+
 /*
 
 MAKE MAIN PANEL
@@ -126,7 +134,20 @@ var BORDER_STYLE = '4px solid rgba(97, 97, 97, 0.05)';
    mainPanel.add(secondSubParagraph);
    mainPanel.add(secondSubParagraphP);
   
-Map.add(mainPanel);
+
+// Use a SplitPanel so it's possible to resize the two panels.
+var splitPanel = ui.SplitPanel({
+  firstPanel: mainPanel,
+  secondPanel: mapPanel,
+  orientation: 'horizontal',
+  style: {stretch: 'both'}
+});
+
+// Set the SplitPanel as the only thing in root.
+ui.root.widgets().reset([splitPanel]);
+
+
+
 
 /*
 
@@ -135,30 +156,30 @@ PROCESSING STARTS HERE
 */
 
 
-Map.setCenter (-120,50,7);
+mapPanel.setCenter (-120,50,7);
 
 
 var drawButton = ui.Button({
   label: 'Draw a Rectangle',
   onClick: function() {
 // Don't make imports that correspond to the drawn rectangles.
-Map.drawingTools().setLinked(false);
+mapPanel.drawingTools().setLinked(false);
 // Limit the draw modes to rectangles.
-Map.drawingTools().setDrawModes(['rectangle']);
+mapPanel.drawingTools().setDrawModes(['rectangle']);
 // Add an empty layer to hold the drawn rectangle.
-Map.drawingTools().addLayer([]);
+mapPanel.drawingTools().addLayer([]);
 // Set the geometry type to be rectangle.
-Map.drawingTools().setShape('rectangle');
+mapPanel.drawingTools().setShape('rectangle');
 // Enter drawing mode.
-Map.drawingTools().draw();
+mapPanel.drawingTools().draw();
 
-Map.drawingTools().onDraw(function (geometry) {
+mapPanel.drawingTools().onDraw(function (geometry) {
   // Do something with the geometry
-  var AOI = Map.drawingTools().toFeatureCollection(0);
+  var AOI = mapPanel.drawingTools().toFeatureCollection(0);
   //Map.addLayer(AOI, null, 'Region of Interest');
-  Map.centerObject(AOI);
-  Map.drawingTools().stop();
-  Map.drawingTools().layers().forEach(function(layer) {
+  mapPanel.centerObject(AOI);
+  mapPanel.drawingTools().stop();
+  mapPanel.drawingTools().layers().forEach(function(layer) {
   layer.setShown(false);
   });
 
@@ -274,9 +295,9 @@ var sld_ramp =
     '</ColorMap>' +
   '</RasterSymbolizer>';
   
-  Map.addLayer(elevation.sldStyle(sld_ramp).clip(AOI), {}, 'Elevation (m)');
-  Map.addLayer(BandComposite.select('B4', 'B3', 'B2','CloudMask').clip(AOI), BandCompViz, 'Sentinel-2 Imagery');
-  Map.addLayer(SCE_masked.clip(AOI), SCEkViz, 'Snow Cover Extent');
+  mapPanel.addLayer(elevation.sldStyle(sld_ramp).clip(AOI), {}, 'Elevation (m)');
+  mapPanel.addLayer(BandComposite.select('B4', 'B3', 'B2','CloudMask').clip(AOI), BandCompViz, 'Sentinel-2 Imagery');
+  mapPanel.addLayer(SCE_masked.clip(AOI), SCEkViz, 'Snow Cover Extent');
   
   
    /*
@@ -295,7 +316,7 @@ ADD DATE PANEL
    var dateLabeltext = ui.Label('Date of the most recent image is:');
    inspector.add(dateLabeltext);
    inspector.add(dateLabel);
-   Map.add(inspector);
+   mapPanel.add(inspector);
  
  /*
 
@@ -398,7 +419,7 @@ for (var j = 0; j < 10; j++) {
   legend.add(makeRow(palette2[j], names2[j]));
   }  
 
-Map.add(legend);
+mapPanel.add(legend);
 
 /*
 
@@ -408,7 +429,7 @@ ADD REFRESH TEXT
 
 var refreshPanel = ui.Panel();
 var refreshText = ui.Label('To refresh the view and start again, press F5.', {fontWeight: 'bold'});
-Map.add(refreshPanel);
+mapPanel.add(refreshPanel);
 refreshPanel.add(refreshText);
  
 });
@@ -421,6 +442,9 @@ refreshPanel.add(refreshText);
 mainPanel.add(drawButton);
 
 
+
+
+
 // ON-HOLD. Can't make this work properly!!
 /*
 
@@ -428,16 +452,14 @@ ADD REFRESH BUTTON
 
 */
 
-
 /*
 var refreshButton = ui.Button({
-  label: 'Reset Map!',
+  label: 'Reset!',
   onClick: function() {
-   Map.setCenter (-117,50,6);
-   Map.layers().reset();
-   Map.drawingTools().layers().reset();
-   //Map.remove(inspector);
-   //Map.remove(legend);
+    ui.root.clear();
+    ui.root.widgets().reset([splitPanel]);
+
+    
   }
 });
 
